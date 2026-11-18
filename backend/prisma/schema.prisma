@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  Int        @id @default(autoincrement())
+  username            String     @unique @db.VarChar(50)
+  password            String     @db.VarChar(255)
+  email               String     @unique @db.VarChar(100)
+  role                String     @db.VarChar(20) // 'donor', 'ngo', 'volunteer', 'admin'
+  location            String     @db.VarChar(255)
+  created_at          DateTime   @default(now()) @db.Timestamp(0)
+
+  // Relations
+  donations           Donation[] @relation("UserDonations")
+  claimed_donations   Donation[] @relation("ClaimedDonations")
+  volunteer_donations Donation[] @relation("VolunteerDonations")
+  requests            Request[]  @relation("NgoRequests")
+  fulfilled_requests  Request[]  @relation("FulfilledRequests")
+
+  @@map("users")
+}
+
+model Donation {
+  id                Int       @id @default(autoincrement())
+  user_id           Int
+  volunteer_id      Int?
+  food_type         String    @db.VarChar(255)
+  phone             String?   @db.VarChar(20)
+  quantity          String    @db.VarChar(100)
+  expiry            DateTime  @db.DateTime(0)
+  freshness         String    @db.VarChar(50)
+  location          String    @db.Text
+  map_link          String?   @db.Text
+  availability_from DateTime  @db.DateTime(0)
+  availability_to   DateTime  @db.DateTime(0)
+  status            String?   @default("available") @db.VarChar(20) // 'available', 'claimed', 'pending', 'completed'
+  claimed_by        Int?
+  created_at        DateTime  @default(now()) @db.Timestamp(0)
+  updated_at        DateTime  @default(now()) @updatedAt @db.Timestamp(0)
+
+  // Relations
+  donor             User      @relation("UserDonations", fields: [user_id], references: [id], onDelete: Cascade)
+  volunteer         User?     @relation("VolunteerDonations", fields: [volunteer_id], references: [id], onDelete: SetNull)
+  claimer           User?     @relation("ClaimedDonations", fields: [claimed_by], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([claimed_by])
+  @@index([volunteer_id])
+  @@map("donations")
+}
+
+model Request {
+  id              Int       @id @default(autoincrement())
+  ngo_id          Int
+  item_needed     String    @db.VarChar(255)
+  quantity_needed String    @db.VarChar(100)
+  map_link        String?   @db.Text
+  contact_number  String    @db.VarChar(20)
+  urgency         String?   @default("Medium") @db.VarChar(20) // 'Low', 'Medium', 'High', 'Critical'
+  status          String?   @default("open") @db.VarChar(20)   // 'open', 'fulfilled'
+  fulfilled_by    Int?
+  created_at      DateTime  @default(now()) @db.Timestamp(0)
+  updated_at      DateTime  @default(now()) @updatedAt @db.Timestamp(0)
+
+  // Relations
+  ngo             User      @relation("NgoRequests", fields: [ngo_id], references: [id], onDelete: Cascade)
+  fulfiller       User?     @relation("FulfilledRequests", fields: [fulfilled_by], references: [id], onDelete: SetNull)
+
+  @@index([ngo_id])
+  @@index([fulfilled_by])
+  @@map("requests")
+}
